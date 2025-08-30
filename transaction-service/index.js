@@ -10,7 +10,10 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 app.use(express.json());
 
 // Lấy URL charge-service từ biến môi trường
-const CHARGE_SERVICE_URL = process.env['CHARGE-SERVICE']?.replace(';', '');
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:3001";
+const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
+const HISTORY_SERVICE_URL = process.env.HISTORY_SERVICE_URL || "http://history-service:3003";
+const TRANSACTION_SERVICE_URL = process.env.TRANSACTION_SERVICE_URL || "http://transaction-service:3004";
 
 // Chuyển tiền
 app.post('/transfer', async (req, res) => {
