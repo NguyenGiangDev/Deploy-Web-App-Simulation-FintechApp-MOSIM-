@@ -151,7 +151,7 @@ app.post('/api/add-history', async (req, res) => {
   }
 });
 
-// Lấy lịch sử tổng hợp
+
 app.post('/api/get-combined-history', async (req, res) => {
   const { username, phone_number } = req.body;
   try {
@@ -204,7 +204,7 @@ app.post('/api/transfer', async (req, res) => {
 });
 
 
-// Start server
+
 app.listen(3000, () => {
   console.log('API Gateway listening on port 3000');
 });
