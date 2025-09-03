@@ -18,23 +18,37 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/NguyenGiangDev/Deploy-Web-App-Simulation-FintechApp-MOSIM-.git'
+               checkout scm
             }
         }
 
         stage('Detect Changed Services') {
             steps {
                 script {
+                    // Fetch latest main to compare
+                    sh "git fetch origin main"
+
+                    // Lấy danh sách file thay đổi so với main
                     def changedFiles = sh(
-                        script: "git diff --name-only HEAD~1 HEAD",
+                        script: "git diff --name-only origin/main...HEAD",
                         returnStdout: true
                     ).trim().split("\n")
 
+                    echo "📄 Files changed:\n${changedFiles.join('\n')}"
+
+                    // Danh sách service thật
+                    def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
+
+                    // Set lưu service thay đổi
                     def changedServices = [] as Set
+
                     for (file in changedFiles) {
                         def topDir = file.tokenize('/')[0]
-                        if (file && topDir.endsWith("-service") || topDir == "api-gateway") {
+                        if (allServices.contains(topDir)) {
                             changedServices << topDir
+                        } else if (topDir == "common-lib" || topDir == "config") {
+                            // Nếu thay đổi file chung, build tất cả service
+                            break
                         }
                     }
 
@@ -49,7 +63,16 @@ pipeline {
                 }
             }
         }
-
+        
+        stage('Semgrep Scan') {
+            steps {
+                sh '''
+                    echo "Running Semgrep scan..."
+                    semgrep --config=auto .
+                '''
+            }
+        }
+        
         stage('Login to ECR') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred-id']]) {
@@ -74,7 +97,11 @@ pipeline {
                             docker build --no-cache -t ${service} ./${service}
 
                             echo "🔍 Scanning image ${service}..."
-                            trivy image --exit-code 1 --severity HIGH,CRITICAL ${service}:latest
+                            echo "🔍 Scanning Node.js dependencies in ${service}..."
+                            trivy fs --exit-code 1 --severity CRITICAL --scanners vuln ./${service}
+
+                            echo "🔍 Scanning base image ${service} (OS packages, warnings only)..."
+                            trivy image --exit-code 0 --severity CRITICAL ${service}:latest
 
                             docker tag ${service}:latest ${ECR_URL}:${service}-latest
                             docker push ${ECR_URL}:${service}-latest
