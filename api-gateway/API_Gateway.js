@@ -16,7 +16,7 @@ app.use(cors({
 }));
 
 
-// Load NODE_ENV trước (từ .env mặc định)
+
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 // Chọn file env theo NODE_ENV
@@ -42,12 +42,6 @@ const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-serv
 const HISTORY_SERVICE_URL = process.env.HISTORY_SERVICE_URL || "http://history-service:3003";
 const TRANSACTION_SERVICE_URL = process.env.TRANSACTION_SERVICE_URL || "http://transaction-service:3004";
 
-console.log("Loaded service URLs:", {
-  AUTH_SERVICE_URL,
-  CHARGE_SERVICE_URL,
-  HISTORY_SERVICE_URL,
-  TRANSACTION_SERVICE_URL
-});
 
 // Đăng ký
 app.post('/register', async (req, res) => {
