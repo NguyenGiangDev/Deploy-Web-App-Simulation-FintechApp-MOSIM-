@@ -206,7 +206,7 @@ app.post('/api/transfer', async (req, res) => {
 });
 
 
-
+// Khởi động server
 app.listen(3000, () => {
   console.log('API Gateway listening on port 3000');
 });

@@ -71,7 +71,7 @@ pipeline {
                             echo "Processing ${service}..."
                             echo "=============================="
 
-                            docker build -t ${service} ./${service}
+                            docker build --no-cache -t ${service} ./${service}
 
                             echo "🔍 Scanning image ${service}..."
                             trivy image --exit-code 1 --severity HIGH,CRITICAL ${service}:latest
