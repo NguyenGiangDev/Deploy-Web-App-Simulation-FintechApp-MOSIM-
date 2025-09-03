@@ -1,7 +1,12 @@
 pipeline {
     agent any
-    
-     stages {
+
+    environment {
+        ECR_URL  = "676206906655.dkr.ecr.ap-southeast-1.amazonaws.com/fintech_web_app"
+        REGION   = "ap-southeast-1"
+    }
+
+    stages {
         stage('Build on Dev only') {
             when {
                 branch 'dev'
@@ -10,14 +15,7 @@ pipeline {
                 echo "🚀 Running build because this is dev branch"
             }
         }
-    }
-    
-    environment {
-        ECR_URL  = "676206906655.dkr.ecr.ap-southeast-1.amazonaws.com/fintech_web_app"
-        REGION   = "ap-southeast-1"
-    }
 
-    stages {
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/NguyenGiangDev/Deploy-Web-App-Simulation-FintechApp-MOSIM-.git'
@@ -27,13 +25,11 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    // Lấy danh sách file thay đổi từ commit trước
                     def changedFiles = sh(
                         script: "git diff --name-only HEAD~1 HEAD",
                         returnStdout: true
                     ).trim().split("\n")
 
-                    // Lấy ra danh sách service (folder cấp 1) thay đổi
                     def changedServices = [] as Set
                     for (file in changedFiles) {
                         def topDir = file.tokenize('/')[0]
@@ -56,9 +52,7 @@ pipeline {
 
         stage('Login to ECR') {
             steps {
-                withCredentials([
-                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred-id']
-                ]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred-id']]) {
                     sh """
                         echo "🔑 Logging into ECR..."
                         aws ecr get-login-password --region ${REGION} \
@@ -77,18 +71,14 @@ pipeline {
                             echo "Processing ${service}..."
                             echo "=============================="
 
-                            # Build Docker image
-                            docker build -t ${service} ./${service}
+                            docker build --no-cache -t ${service} ./${service}
 
-                            # Security scan với Trivy
                             echo "🔍 Scanning image ${service}..."
                             trivy image --exit-code 1 --severity HIGH,CRITICAL ${service}:latest
 
-                            # Nếu pass scan thì mới push
                             docker tag ${service}:latest ${ECR_URL}:${service}-latest
                             docker push ${ECR_URL}:${service}-latest
 
-                            # Cleanup local
                             docker rmi ${service}:latest || true
                             docker rmi ${ECR_URL}:${service}-latest || true
 
