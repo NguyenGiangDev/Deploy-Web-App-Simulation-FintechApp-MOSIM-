@@ -151,7 +151,7 @@ app.post('/api/add-history', async (req, res) => {
   }
 });
 
-
+// Lấy lịch sử giao dịch (gộp từ history-service và transaction-service)
 app.post('/api/get-combined-history', async (req, res) => {
   const { username, phone_number } = req.body;
   try {
@@ -171,6 +171,7 @@ app.post('/api/get-combined-history', async (req, res) => {
   }
 });
 
+// Xác nhận người dùng (cho việc chuyển tiền)
 app.post('/api/confirm-user', async (req, res) => {
   const { phone_number } = req.body;
   try {
@@ -185,6 +186,7 @@ app.post('/api/confirm-user', async (req, res) => {
   }
 });
 
+// Chuyển tiền
 app.post('/api/transfer', async (req, res) => {
   const { from_user, to_user, from_phone_number, to_phone_number, amount, transaction_realtime } = req.body;
   try {
