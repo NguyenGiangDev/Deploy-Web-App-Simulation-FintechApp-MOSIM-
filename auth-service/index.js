@@ -82,6 +82,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Xác nhận người dùng (Cho việc chuyển tiền)
 app.post('/confirm-user', async (req, res) => {
   const { phone_number } = req.body;
   try {
