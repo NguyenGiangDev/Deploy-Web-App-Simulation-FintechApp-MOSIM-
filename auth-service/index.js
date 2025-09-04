@@ -29,7 +29,7 @@ app.post('/register', async (req, res) => {
     // Mã hóa mật khẩu
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Chèn vào DB
+    // Thêm user vào Database vào DB
     const newUser = await pool.query(
       'INSERT INTO users (name, phone_number, password) VALUES ($1, $2, $3) RETURNING id, name, phone_number',
       [name, phone_number, hashedPassword]
