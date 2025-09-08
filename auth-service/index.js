@@ -128,3 +128,5 @@ pool.query('SELECT 1')
     console.error('❌ Kết nối database thất bại:', err.message);
     process.exit(1); // Dừng server nếu không kết nối được
   });
+
+  module.exports = app
