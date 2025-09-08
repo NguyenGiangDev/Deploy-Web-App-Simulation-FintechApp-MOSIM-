@@ -12,4 +12,5 @@ const pool = new Pool({
   }
 });
 
+// export để tái sử dụng trong file index.js
 module.exports = pool;
