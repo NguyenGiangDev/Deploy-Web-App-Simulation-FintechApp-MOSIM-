@@ -63,34 +63,34 @@ pipeline {
                 }
             }
         }
-     agent {
-        docker {
-            image 'node:18'  
-            args '-u root:root' 
-        }
-    }
 
       stage('Run Unit Tests') {
-    steps {
-        script {
-            for (service in env.CHANGED_SERVICES.split(" ")) {
-                sh """
-                    echo "=============================="
-                    echo "Running unit tests for ${service}..."
-                    echo "==============================="
-                    cd ${service}
-                    npm install
-                    npm test
-                    if [ \$? -ne 0 ]; then
-                        echo "❌ Unit tests failed for ${service}"
-                        exit 1
-                    else
-                        echo "✅ Unit tests passed for ${service}"
-                    fi
-                """
+         agent {
+            docker {
+                image 'node:18'  
+                args '-u root:root' 
+            }
+           }
+        steps {
+            script {
+                for (service in env.CHANGED_SERVICES.split(" ")) {
+                    sh """
+                        echo "=============================="
+                        echo "Running unit tests for ${service}..."
+                        echo "==============================="
+                        cd ${service}
+                        npm install
+                        npm test
+                        if [ \$? -ne 0 ]; then
+                            echo "❌ Unit tests failed for ${service}"
+                            exit 1
+                        else
+                            echo "✅ Unit tests passed for ${service}"
+                        fi
+                    """
+                }
             }
         }
-    }
 }
 
         stage('Semgrep Scan') {
