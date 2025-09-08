@@ -63,7 +63,13 @@ pipeline {
                 }
             }
         }
-        
+     agent {
+        docker {
+            image 'node:18'  
+            args '-u root:root' 
+        }
+    }
+
       stage('Run Unit Tests') {
     steps {
         script {
