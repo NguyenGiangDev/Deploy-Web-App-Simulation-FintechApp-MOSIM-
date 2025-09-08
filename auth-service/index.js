@@ -4,6 +4,7 @@ const app = express();
 const pool = require('./db');
 require('dotenv').config();
 
+// Middler ware để parse JSON BODY
 app.use(express.json());
 
 // Đăng ký
