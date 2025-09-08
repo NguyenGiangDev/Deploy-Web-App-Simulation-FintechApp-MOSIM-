@@ -7,6 +7,29 @@ require('dotenv').config();
 // Middler ware để parse JSON BODY
 app.use(express.json());
 
+// Kiểm tra kết nối DB thủ công qua API
+app.get('/test-db', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send('DB connection failed');
+  }
+});
+
+// Kiểm tra kết nối DB khi khởi động server
+pool.query('SELECT 1')
+  .then(() => {
+    console.log('✅ Kết nối database thành công');
+    app.listen(3001, () => {
+      console.log('Auth service listening on port 3001');
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Kết nối database thất bại:', err.message);
+    process.exit(1); // Dừng server nếu không kết nối được
+  });
+  
 // Đăng ký
 app.post('/register', async (req, res) => {
   console.log('Received body:', req.body);
@@ -107,27 +130,6 @@ app.post('/confirm-user', async (req, res) => {
   }
 });
 
-// Kiểm tra kết nối DB thủ công qua API
-app.get('/test-db', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW()');
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).send('DB connection failed');
-  }
-});
 
-// Kiểm tra kết nối DB khi khởi động server
-pool.query('SELECT 1')
-  .then(() => {
-    console.log('✅ Kết nối database thành công');
-    app.listen(3001, () => {
-      console.log('Auth service listening on port 3001');
-    });
-  })
-  .catch((err) => {
-    console.error('❌ Kết nối database thất bại:', err.message);
-    process.exit(1); // Dừng server nếu không kết nối được
-  });
 
   module.exports = app
