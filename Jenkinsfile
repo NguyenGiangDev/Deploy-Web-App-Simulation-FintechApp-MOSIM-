@@ -80,6 +80,7 @@ pipeline {
                     echo "==============================="
                     cd ${service}
                     npm install
+                    chmod +x ./node_modules/.bin/jest
                     npm test
                     if [ \$? -ne 0 ]; then
                         echo "❌ Unit tests failed for ${service}"
