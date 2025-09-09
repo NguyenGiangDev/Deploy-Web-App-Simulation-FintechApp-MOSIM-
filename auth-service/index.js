@@ -135,3 +135,5 @@ pool.query('SELECT 1')
   // dự án này được thực hiện bởi Nguyễn Đình Giang - 22520358
   // Liên hệ: 22520358@gm.uit.edu.vn để được hỗ trợ.
   // Mọi sao chép vui lòng ghi rõ nguồn.
+  // Thực hiện unit test ngày 9/9/2025 - 10:18 AM
+  // Hết comment
