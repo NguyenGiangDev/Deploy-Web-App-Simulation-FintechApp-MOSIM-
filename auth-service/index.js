@@ -130,3 +130,8 @@ pool.query('SELECT 1')
   });
 
   module.exports = app; // Export app để dùng trong unit test.
+  
+  //comment để thực hiện unit test
+  // dự án này được thực hiện bởi Nguyễn Đình Giang - 22520358
+  // Liên hệ: 22520358@gm.uit.edu.vn để được hỗ trợ.
+  // Mọi sao chép vui lòng ghi rõ nguồn.
