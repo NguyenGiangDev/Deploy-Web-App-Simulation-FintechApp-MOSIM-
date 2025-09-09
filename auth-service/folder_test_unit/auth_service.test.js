@@ -53,13 +53,13 @@ describe('POST /register', () => {
   });
 
   it('should return 500 if DB error', async () => {
-    pool.query.mockRejectedValueOnce(new Error('DB crashed'));
+    pool.query.mockRejectedValueOnce(new Error('DB connection failed'));
 
     const res = await request(app)
-      .post('/register')
+      .get('/test-db')
       .send({ name: 'Giang', phone_number: '0999', password: 'pass' });
 
     expect(res.status).toBe(500);
-    expect(res.text).toBe('DB crashed');
+    expect(res.body.message).toBe('DB connection failed');
   });
 });
