@@ -16,11 +16,17 @@ pipeline {
             }
         }
 
-        stage('Checkout Code') {
-            steps {
-               checkout scm
-            }
-        }
+      stage('Checkout Code') {
+    steps {
+        checkout([
+            $class: 'GitSCM',
+            branches: [[name: '*/dev']],
+            userRemoteConfigs: [[url: 'https://github.com/NguyenGiangDev/Deploy-Web-App-Simulation-FintechApp-MOSIM-.git']],
+            extensions: [[$class: 'CleanBeforeCheckout']]
+        ])
+    }
+}
+
          
         stage('Detect Changed Services') {
             steps {
