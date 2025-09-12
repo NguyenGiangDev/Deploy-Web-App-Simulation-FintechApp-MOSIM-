@@ -5,21 +5,9 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
-app.use(cors({
-   origin: [
-    'http://mosim-front-end.s3-website-ap-southeast-1.amazonaws.com',
-    'https://mosim-front-end.s3-website-ap-southeast-1.amazonaws.com',
-    'https://d29lh6hd2oahwi.cloudfront.net'
-  ],
-  methods: ['GET','POST','PUT','DELETE'],
-  credentials: true
-}));
-
-
-
+// Load biến môi trường
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-// Chọn file env theo NODE_ENV
 if (process.env.NODE_ENV === 'local') {
   dotenv.config({ path: path.join(__dirname, '..', '.env.local') });
   console.log("Loaded local env");
@@ -30,18 +18,23 @@ if (process.env.NODE_ENV === 'local') {
   console.log("Loaded default .env");
 }
 
-
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'Public')));
-
-// Lấy URL từ biến môi trường
-// Lấy URL từ biến môi trường hoặc fallback mặc định
+// Lấy biến môi trường
+const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:3001";
 const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
 const HISTORY_SERVICE_URL = process.env.HISTORY_SERVICE_URL || "http://history-service:3003";
 const TRANSACTION_SERVICE_URL = process.env.TRANSACTION_SERVICE_URL || "http://transaction-service:3004";
 
+console.log("Frontend URL xuất url:", ENV_FRONTEND_URL);
+app.use(cors({
+  origin: [ENV_FRONTEND_URL],
+  methods: ['GET','POST','PUT','DELETE'],
+  credentials: true
+}));
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'Public')));
 
 // Đăng ký
 app.post('/register', async (req, res) => {
@@ -58,7 +51,7 @@ app.post('/register', async (req, res) => {
       password
     });
 
-    const loginUrl = `https://d29lh6hd2oahwi.cloudfront.net/Login.html`;
+    const loginUrl = `${ENV_FRONTEND_URL}/Login.html`;
     res.redirect(loginUrl);
   } catch (err) {
     if (err.response) {
@@ -80,9 +73,11 @@ app.post('/login', async (req, res) => {
     });
 
     const { name, phone_number: phone } = response.data.user;
-      // Redirect sang front-end HTTPS Dashboard
-      const dashboardUrl = `https://d29lh6hd2oahwi.cloudfront.net/Dashboard.html?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
-       res.redirect(dashboardUrl);
+
+    // Redirect sang Dashboard frontend
+    const dashboardUrl = `${ENV_FRONTEND_URL}/Dashboard.html?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
+    res.redirect(dashboardUrl);
+
   } catch (err) {
     if (err.response) {
       res.status(err.response.status).json({ message: err.response.data });
@@ -93,6 +88,7 @@ app.post('/login', async (req, res) => {
     }
   }
 });
+
 
 // Nạp tiền
 app.post('/api/deposit', async (req, res) => {
@@ -205,8 +201,5 @@ app.post('/api/transfer', async (req, res) => {
   }
 });
 
-
-// Khởi động server
-app.listen(3000, () => {
-  console.log('API Gateway listening on port 3000');
-});
+// Xuất app để dùng trong testing và nhận request từ server.js
+module.exports = app;

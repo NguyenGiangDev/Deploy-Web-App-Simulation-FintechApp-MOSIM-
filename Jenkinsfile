@@ -16,11 +16,17 @@ pipeline {
             }
         }
 
-        stage('Checkout Code') {
-            steps {
-               checkout scm
-            }
-        }
+      stage('Checkout Code') {
+    steps {
+        checkout([
+            $class: 'GitSCM',
+            branches: [[name: '*/dev']],
+            userRemoteConfigs: [[url: 'https://github.com/NguyenGiangDev/Deploy-Web-App-Simulation-FintechApp-MOSIM-.git']],
+            extensions: [[$class: 'CleanBeforeCheckout']]
+        ])
+    }
+}
+
          
         stage('Detect Changed Services') {
             steps {
@@ -146,20 +152,30 @@ pipeline {
                 }
             }
         }
-    stage('Deploy on EC2') {
-    steps {
-        sshagent (credentials: ['ec2-ssh-key']) {
-            sh '''
-              ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com << 'EOF'
-                cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM-
-                docker compose pull || true
-                docker compose up -d || true
+  stage('Deploy on EC2') {
+    sshagent (credentials: ['ec2-ssh-key']) {
+        withCredentials([string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL')]) {
+            sh """
+              ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
+                # Đăng nhập lại vào ECR
+                aws ecr get-login-password --region ap-southeast-1 | \
+                  docker login --username AWS --password-stdin 676206906655.dkr.ecr.ap-southeast-1.amazonaws.com
+
+                # Xuất biến môi trường để docker-compose dùng
+                export FRONTEND_URL=${FRONTEND_URL}
+
+                # Triển khai container
+                cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
+                docker compose pull &&
+                docker compose up -d &&
                 docker image prune -f
-              EOF
-            '''
+              '
+            """
         }
     }
 }
+
+
 
 
     }
