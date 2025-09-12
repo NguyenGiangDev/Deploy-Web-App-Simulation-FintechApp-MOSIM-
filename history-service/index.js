@@ -5,6 +5,18 @@ require('dotenv').config();
 
 app.use(express.json());
 
+// Khởi động server history service
+pool.query('SELECT 1')
+  .then(() => {
+    console.log('✅ Kết nối database thành công');
+    app.listen(3003, () => {
+      console.log('Charge service listening on port 3003');
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Kết nối database thất bại', err);
+    process.exit(1);
+  });
 // Kiểm tra kết nối DB
 app.get('/test-db', async (req, res) => {
   try {
@@ -53,15 +65,3 @@ app.post('/history', async (req, res) => {
     }
 });
 
-// Khởi động server
-pool.query('SELECT 1')
-  .then(() => {
-    console.log('✅ Kết nối database thành công');
-    app.listen(3003, () => {
-      console.log('Charge service listening on port 3003');
-    });
-  })
-  .catch((err) => {
-    console.error('❌ Kết nối database thất bại', err);
-    process.exit(1);
-  });
