@@ -13,4 +13,4 @@ COPY API_Gateway.js .
 EXPOSE 8080
 
 # Chạy file Node.js
-CMD ["node", "API_Gateway.js"]
+CMD ["node", "server.js"]
