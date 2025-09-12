@@ -146,11 +146,27 @@ pipeline {
                 }
             }
         }
+    stage('Deploy on EC2') {
+    steps {
+        sshagent (credentials: ['ec2-ssh-key']) {
+            sh '''
+              ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com << 'EOF'
+                cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM-
+                docker compose pull || true
+                docker compose up -d || true
+                docker image prune -f
+              EOF
+            '''
+        }
+    }
+}
+
+
     }
 
     post {
         success {
-            echo "✅ Chỉ build & push các service thay đổi thành công!"
+            echo "✅ Triển khai webapp trên môi trường dev thành công !"
         }
         failure {
             echo "❌ Pipeline failed. Please check logs."
