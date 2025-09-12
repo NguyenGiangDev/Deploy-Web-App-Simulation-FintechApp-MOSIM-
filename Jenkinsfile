@@ -28,47 +28,45 @@ pipeline {
 }
 
          
-        stage('Detect Changed Services') {
-            steps {
-                script {
-                    // Fetch latest main to compare
-                    sh "git fetch origin main"
+stage('Detect Changed Services') {
+    steps {
+        script {
+            // Fetch latest main để chắc chắn code mới nhất
+            sh "git fetch origin main"
 
-                    // Lấy danh sách file thay đổi so với main
-                    def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD",
-                        returnStdout: true
-                    ).trim().split("\n")
+            // So sánh file thay đổi với main
+            def changedFiles = sh(
+                script: "git diff --name-only origin/main..HEAD",
+                returnStdout: true
+            ).trim().split("\n")
 
-                    echo "📄 Files changed:\n${changedFiles.join('\n')}"
+            echo "📄 Files changed:\n${changedFiles.join('\n')}"
 
-                    // Danh sách service thật
-                    def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
+            def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
+            def changedServices = [] as Set
 
-                    // Set lưu service thay đổi
-                    def changedServices = [] as Set
-
-                    for (file in changedFiles) {
-                        def topDir = file.tokenize('/')[0]
-                        if (allServices.contains(topDir)) {
-                            changedServices << topDir
-                        } else if (topDir == "common-lib" || topDir == "config") {
-                            // Nếu thay đổi file chung, build tất cả service
-                            break
-                        }
-                    }
-
-                    if (changedServices.isEmpty()) {
-                        echo "⚡ Không có service nào thay đổi. Dừng pipeline."
-                        currentBuild.result = 'SUCCESS'
-                        error("Stop build - no services changed")
-                    }
-
-                    env.CHANGED_SERVICES = changedServices.join(" ")
-                    echo "📦 Các service thay đổi: ${env.CHANGED_SERVICES}"
+            for (file in changedFiles) {
+                def topDir = file.tokenize('/')[0]
+                if (allServices.contains(topDir)) {
+                    changedServices << topDir
+                } else if (topDir == "common-lib" || topDir == "config") {
+                    // Nếu thay đổi file chung, build tất cả service
+                    changedServices.addAll(allServices)
+                    break
                 }
             }
+
+            if (changedServices.isEmpty()) {
+                echo "⚡ Không có service nào thay đổi. Dừng pipeline."
+                currentBuild.result = 'SUCCESS'
+                error("Stop build - no services changed")
+            }
+
+            env.CHANGED_SERVICES = changedServices.join(" ")
+            echo "📦 Các service thay đổi: ${env.CHANGED_SERVICES}"
         }
+    }
+}
 
   stage('Run Unit Tests') {
     agent {

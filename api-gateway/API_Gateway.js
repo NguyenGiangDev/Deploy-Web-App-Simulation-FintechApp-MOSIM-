@@ -18,14 +18,15 @@ if (process.env.NODE_ENV === 'local') {
   console.log("Loaded default .env");
 }
 
-// Lấy biến môi trường
+console.log("Frontend URL xuất url:", ENV_FRONTEND_URL);
+
 const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:3001";
 const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
 const HISTORY_SERVICE_URL = process.env.HISTORY_SERVICE_URL || "http://history-service:3003";
 const TRANSACTION_SERVICE_URL = process.env.TRANSACTION_SERVICE_URL || "http://transaction-service:3004";
 
-console.log("Frontend URL xuất url:", ENV_FRONTEND_URL);
+
 app.use(cors({
   origin: [ENV_FRONTEND_URL],
   methods: ['GET','POST','PUT','DELETE'],
