@@ -20,8 +20,7 @@ if (process.env.NODE_ENV === 'local') {
 
 
 const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
-// Log biến môi trường để kiểm tra
-console.log("Frontend URL xuất url:", ENV_FRONTEND_URL);
+
 
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:3001";
 const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
