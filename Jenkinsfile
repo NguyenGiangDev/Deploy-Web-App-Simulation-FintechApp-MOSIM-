@@ -6,28 +6,15 @@ pipeline {
     }
 
     environment {
-        ECR_URL  = "676206906655.dkr.ecr.ap-southeast-1.amazonaws.com/fintech_web_app"
-        REGION   = "ap-southeast-1"
+        ECR_URL = "676206906655.dkr.ecr.ap-southeast-1.amazonaws.com/fintech_web_app"
+        REGION  = "ap-southeast-1"
     }
 
     stages {
-        stage('Build on Dev only') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                echo "🚀 Running build because this is dev branch"
-            }
-        }
-
         stage('Checkout Code') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: "*/${env.BRANCH_NAME}"]],
-                    userRemoteConfigs: [[url: 'https://github.com/NguyenGiangDev/Deploy-Web-App-Simulation-FintechApp-MOSIM-.git']],
-                    extensions: [[$class: 'CleanBeforeCheckout']]
-                ])
+                checkout scm
+                sh "git fetch --all"
             }
         }
 
@@ -37,14 +24,12 @@ pipeline {
                     def changedFiles = []
 
                     if (env.BRANCH_NAME == "dev") {
-                        // Chỉ fetch main nếu đang ở dev
                         sh "git fetch origin main"
                         changedFiles = sh(
                             script: "git diff --name-only origin/main..HEAD",
                             returnStdout: true
                         ).trim().split("\n")
                     } else {
-                        // Các branch khác thì diff so với commit trước
                         changedFiles = sh(
                             script: "git diff --name-only HEAD~1..HEAD",
                             returnStdout: true
@@ -67,9 +52,9 @@ pipeline {
                     }
 
                     if (changedServices.isEmpty()) {
-                        echo "⚡ Không có service nào thay đổi. Dừng pipeline."
+                        echo "⚡ Không có service nào thay đổi. Stop pipeline."
                         currentBuild.result = 'SUCCESS'
-                        error("Stop build - no services changed")
+                        error("No services changed")
                     }
 
                     env.CHANGED_SERVICES = changedServices.join(" ")
@@ -78,7 +63,15 @@ pipeline {
             }
         }
 
+        stage('Build on Dev only') {
+            when { branch 'dev' }
+            steps {
+                echo "🚀 Running build on dev branch"
+            }
+        }
+
         stage('Run Unit Tests') {
+            when { branch 'dev' }
             agent {
                 docker {
                     image 'node:18'
@@ -94,14 +87,8 @@ pipeline {
                             echo "==============================="
                             cd ${service}
                             npm install
-                            chmod +x ./node_modules/.bin/jest
-                            npm test
-                            if [ \$? -ne 0 ]; then
-                                echo "❌ Unit tests failed for ${service}"
-                                exit 1
-                            else
-                                echo "✅ Unit tests passed for ${service}"
-                            fi
+                            npm test || (echo "❌ Tests failed for ${service}" && exit 1)
+                            echo "✅ Tests passed for ${service}"
                         """
                     }
                 }
@@ -109,51 +96,52 @@ pipeline {
         }
 
         stage('Semgrep Scan') {
+            when { branch 'dev' }
             steps {
                 sh '''
-                    echo "Running Semgrep scan..."
+                    echo "🔍 Running Semgrep scan..."
                     semgrep --config=auto .
                 '''
             }
         }
-        
+
         stage('Login to ECR') {
+            when { branch 'dev' }
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred-id']]) {
                     sh """
                         echo "🔑 Logging into ECR..."
                         aws ecr get-login-password --region ${REGION} \
-                            | docker login --username AWS --password-stdin ${ECR_URL}
+                          | docker login --username AWS --password-stdin ${ECR_URL}
                     """
                 }
             }
         }
 
         stage('Build, Scan & Push Docker Images') {
+            when { branch 'dev' }
             steps {
                 script {
                     for (service in env.CHANGED_SERVICES.split(" ")) {
+                        def tag = "${ECR_URL}:${service}-latest"
                         sh """
                             echo "=============================="
                             echo "Processing ${service}..."
                             echo "=============================="
 
-                            docker build --no-cache -t ${service} ./${service}
+                            docker build --no-cache -t ${service}:latest ./${service}
 
-                            echo "🔍 Scanning image ${service}..."
                             echo "🔍 Scanning Node.js dependencies in ${service}..."
                             trivy fs --exit-code 1 --severity CRITICAL --scanners vuln ./${service}
 
-                            echo "🔍 Scanning base image ${service} (OS packages, warnings only)..."
+                            echo "🔍 Scanning base image ${service}..."
                             trivy image --exit-code 0 --severity CRITICAL ${service}:latest
 
-                            docker tag ${service}:latest ${ECR_URL}:${service}-latest
-                            docker push ${ECR_URL}:${service}-latest
+                            docker tag ${service}:latest ${tag}
+                            docker push ${tag}
 
                             docker rmi ${service}:latest || true
-                            docker rmi ${ECR_URL}:${service}-latest || true
-
-                            echo "${service} done."
+                            docker rmi ${tag} || true
                         """
                     }
                 }
@@ -161,21 +149,24 @@ pipeline {
         }
 
         stage('Deploy on EC2') {
-            sshagent (credentials: ['ec2-ssh-key']) {
-                withCredentials([string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL')]) {
-                    sh """
-                      ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
-                        aws ecr get-login-password --region ap-southeast-1 | \
-                          docker login --username AWS --password-stdin 676206906655.dkr.ecr.ap-southeast-1.amazonaws.com
+            when { branch 'dev' }
+            steps {
+                sshagent (credentials: ['ec2-ssh-key']) {
+                    withCredentials([string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL')]) {
+                        sh """
+                          ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
+                            aws ecr get-login-password --region ap-southeast-1 | \
+                              docker login --username AWS --password-stdin 676206906655.dkr.ecr.ap-southeast-1.amazonaws.com
 
-                        export FRONTEND_URL=${FRONTEND_URL}
+                            export FRONTEND_URL=${FRONTEND_URL}
 
-                        cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
-                        docker compose pull &&
-                        docker compose up -d &&
-                        docker image prune -f
-                      '
-                    """
+                            cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
+                            docker compose pull &&
+                            docker compose up -d &&
+                            docker image prune -f
+                          '
+                        """
+                    }
                 }
             }
         }
