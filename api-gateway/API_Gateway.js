@@ -203,9 +203,5 @@ app.post('/api/transfer', async (req, res) => {
 });
 
 
-//
-//
-//
-//
-// Xuất app để dùng trong testing và nhận request từ server.js
+// Export app để dùng trong server.js và test
 module.exports = app;
