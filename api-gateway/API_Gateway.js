@@ -18,6 +18,7 @@ if (process.env.NODE_ENV === 'local') {
   console.log("Loaded default .env");
 }
 
+// Log biến môi trường để kiểm tra
 console.log("Frontend URL xuất url:", ENV_FRONTEND_URL);
 
 const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
@@ -33,6 +34,7 @@ app.use(cors({
   credentials: true
 }));
 
+// Middle wares
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'Public')));
@@ -131,6 +133,7 @@ app.post('/api/get-balance', async (req, res) => {
   }
 });
 
+// Thêm lịch sử giao dịch (nạp tiền)
 app.post('/api/add-history', async (req, res) => {
   const { amount, username, phone_number, bank, transaction_time } = req.body;
   try {
