@@ -27,7 +27,7 @@ WORKDIR /usr/src/app
 # Copy node_modules + source từ stage builder
 COPY --from=builder /usr/src/app /usr/src/app
 
-# Expose cổng service (chỉnh lại cho đúng service của bạn)
+# Expose cổng service 
 EXPOSE 3000
 
 # Chạy bằng user non-root
