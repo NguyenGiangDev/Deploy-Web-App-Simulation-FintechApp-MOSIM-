@@ -12,4 +12,5 @@ const pool = new Pool({
   }
 });
 
+// Expose pool để các module khác có thể sử dụng
 module.exports = pool;
