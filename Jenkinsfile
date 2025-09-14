@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    triggers {
+        githubPush()
+    }
+
     environment {
         ECR_URL  = "676206906655.dkr.ecr.ap-southeast-1.amazonaws.com/fintech_web_app"
         REGION   = "ap-southeast-1"
@@ -16,88 +20,93 @@ pipeline {
             }
         }
 
-      stage('Checkout Code') {
-    steps {
-        checkout([
-            $class: 'GitSCM',
-            branches: [[name: '*/dev']],
-            userRemoteConfigs: [[url: 'https://github.com/NguyenGiangDev/Deploy-Web-App-Simulation-FintechApp-MOSIM-.git']],
-            extensions: [[$class: 'CleanBeforeCheckout']]
-        ])
-    }
-}
+        stage('Checkout Code') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "*/${env.BRANCH_NAME}"]],
+                    userRemoteConfigs: [[url: 'https://github.com/NguyenGiangDev/Deploy-Web-App-Simulation-FintechApp-MOSIM-.git']],
+                    extensions: [[$class: 'CleanBeforeCheckout']]
+                ])
+            }
+        }
 
-         
-stage('Detect Changed Services') {
-    steps {
-        script {
-            // Fetch latest main để chắc chắn code mới nhất
-            sh "git fetch origin main"
+        stage('Detect Changed Services') {
+            steps {
+                script {
+                    def changedFiles = []
 
-            // So sánh file thay đổi với main
-            def changedFiles = sh(
-                script: "git diff --name-only origin/main..HEAD",
-                returnStdout: true
-            ).trim().split("\n")
+                    if (env.BRANCH_NAME == "dev") {
+                        // Chỉ fetch main nếu đang ở dev
+                        sh "git fetch origin main"
+                        changedFiles = sh(
+                            script: "git diff --name-only origin/main..HEAD",
+                            returnStdout: true
+                        ).trim().split("\n")
+                    } else {
+                        // Các branch khác thì diff so với commit trước
+                        changedFiles = sh(
+                            script: "git diff --name-only HEAD~1..HEAD",
+                            returnStdout: true
+                        ).trim().split("\n")
+                    }
 
-            echo "📄 Files changed:\n${changedFiles.join('\n')}"
+                    echo "📄 Files changed:\n${changedFiles.join('\n')}"
 
-            def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
-            def changedServices = [] as Set
+                    def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
+                    def changedServices = [] as Set
 
-            for (file in changedFiles) {
-                def topDir = file.tokenize('/')[0]
-                if (allServices.contains(topDir)) {
-                    changedServices << topDir
-                } else if (topDir == "common-lib" || topDir == "config") {
-                    // Nếu thay đổi file chung, build tất cả service
-                    changedServices.addAll(allServices)
-                    break
+                    for (file in changedFiles) {
+                        def topDir = file.tokenize('/')[0]
+                        if (allServices.contains(topDir)) {
+                            changedServices << topDir
+                        } else if (topDir == "common-lib" || topDir == "config") {
+                            changedServices.addAll(allServices)
+                            break
+                        }
+                    }
+
+                    if (changedServices.isEmpty()) {
+                        echo "⚡ Không có service nào thay đổi. Dừng pipeline."
+                        currentBuild.result = 'SUCCESS'
+                        error("Stop build - no services changed")
+                    }
+
+                    env.CHANGED_SERVICES = changedServices.join(" ")
+                    echo "📦 Các service thay đổi: ${env.CHANGED_SERVICES}"
                 }
             }
+        }
 
-            if (changedServices.isEmpty()) {
-                echo "⚡ Không có service nào thay đổi. Dừng pipeline."
-                currentBuild.result = 'SUCCESS'
-                error("Stop build - no services changed")
+        stage('Run Unit Tests') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-u root:root'
+                }
             }
-
-            env.CHANGED_SERVICES = changedServices.join(" ")
-            echo "📦 Các service thay đổi: ${env.CHANGED_SERVICES}"
-        }
-    }
-}
-
-  stage('Run Unit Tests') {
-    agent {
-        docker {
-            image 'node:18'
-            args '-u root:root'
-        }
-    }
-    steps {
-        script {
-            for (service in env.CHANGED_SERVICES.split(" ")) {
-                sh """
-                    echo "=============================="
-                    echo "Running unit tests for ${service}..."
-                    echo "==============================="
-                    cd ${service}
-                    npm install
-                    chmod +x ./node_modules/.bin/jest
-                    npm test
-                    if [ \$? -ne 0 ]; then
-                        echo "❌ Unit tests failed for ${service}"
-                        exit 1
-                    else
-                        echo "✅ Unit tests passed for ${service}"
-                    fi
-                """
+            steps {
+                script {
+                    for (service in env.CHANGED_SERVICES.split(" ")) {
+                        sh """
+                            echo "=============================="
+                            echo "Running unit tests for ${service}..."
+                            echo "==============================="
+                            cd ${service}
+                            npm install
+                            chmod +x ./node_modules/.bin/jest
+                            npm test
+                            if [ \$? -ne 0 ]; then
+                                echo "❌ Unit tests failed for ${service}"
+                                exit 1
+                            else
+                                echo "✅ Unit tests passed for ${service}"
+                            fi
+                        """
+                    }
+                }
             }
         }
-    }
-}
-
 
         stage('Semgrep Scan') {
             steps {
@@ -150,32 +159,26 @@ stage('Detect Changed Services') {
                 }
             }
         }
-  stage('Deploy on EC2') {
-    sshagent (credentials: ['ec2-ssh-key']) {
-        withCredentials([string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL')]) {
-            sh """
-              ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
-                # Đăng nhập lại vào ECR
-                aws ecr get-login-password --region ap-southeast-1 | \
-                  docker login --username AWS --password-stdin 676206906655.dkr.ecr.ap-southeast-1.amazonaws.com
 
-                # Xuất biến môi trường để docker-compose dùng
-                export FRONTEND_URL=${FRONTEND_URL}
+        stage('Deploy on EC2') {
+            sshagent (credentials: ['ec2-ssh-key']) {
+                withCredentials([string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL')]) {
+                    sh """
+                      ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
+                        aws ecr get-login-password --region ap-southeast-1 | \
+                          docker login --username AWS --password-stdin 676206906655.dkr.ecr.ap-southeast-1.amazonaws.com
 
-                # Triển khai container
-                cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
-                docker compose pull &&
-                docker compose up -d &&
-                docker image prune -f
-              '
-            """
+                        export FRONTEND_URL=${FRONTEND_URL}
+
+                        cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
+                        docker compose pull &&
+                        docker compose up -d &&
+                        docker image prune -f
+                      '
+                    """
+                }
+            }
         }
-    }
-}
-
-
-
-
     }
 
     post {

@@ -1,4 +1,4 @@
-
+// Require các module cần thiết
 const app = require('./API_Gateway')
 
 
