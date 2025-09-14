@@ -64,18 +64,18 @@ pipeline {
         }
 
         stage('Build on Dev only') {
-            when { branch 'dev' }
+            when { expression { env.BRANCH_NAME == 'dev' } }
             steps {
                 echo "🚀 Running build on dev branch"
             }
         }
 
         stage('Run Unit Tests') {
-            when { branch 'dev' }
+            when { expression { env.BRANCH_NAME == 'dev' } }
             agent {
                 docker {
                     image 'node:18'
-                    args '-u root:root'
+                    args '-u root:root -v ${PWD}:/workspace -w /workspace'
                 }
             }
             steps {
@@ -84,7 +84,7 @@ pipeline {
                         sh """
                             echo "=============================="
                             echo "Running unit tests for ${service}..."
-                            echo "==============================="
+                            echo "=============================="
                             cd ${service}
                             npm install
                             npm test || (echo "❌ Tests failed for ${service}" && exit 1)
@@ -96,7 +96,7 @@ pipeline {
         }
 
         stage('Semgrep Scan') {
-            when { branch 'dev' }
+            when { expression { env.BRANCH_NAME == 'dev' } }
             steps {
                 sh '''
                     echo "🔍 Running Semgrep scan..."
@@ -106,7 +106,7 @@ pipeline {
         }
 
         stage('Login to ECR') {
-            when { branch 'dev' }
+            when { expression { env.BRANCH_NAME == 'dev' } }
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred-id']]) {
                     sh """
@@ -119,7 +119,7 @@ pipeline {
         }
 
         stage('Build, Scan & Push Docker Images') {
-            when { branch 'dev' }
+            when { expression { env.BRANCH_NAME == 'dev' } }
             steps {
                 script {
                     for (service in env.CHANGED_SERVICES.split(" ")) {
@@ -149,12 +149,13 @@ pipeline {
         }
 
         stage('Deploy on EC2') {
-            when { branch 'dev' }
+            when { expression { env.BRANCH_NAME == 'dev' } }
             steps {
                 sshagent (credentials: ['ec2-ssh-key']) {
                     withCredentials([string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL')]) {
                         sh """
                           ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
+                            set -e
                             aws ecr get-login-password --region ap-southeast-1 | \
                               docker login --username AWS --password-stdin 676206906655.dkr.ecr.ap-southeast-1.amazonaws.com
 
