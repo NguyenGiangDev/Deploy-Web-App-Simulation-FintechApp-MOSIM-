@@ -173,7 +173,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Triển khai webapp trên môi trường web thành công !"
+            echo "✅ Deploy dev environment success !"
         }
         failure {
             echo "❌ Pipeline failed. Please check logs."
