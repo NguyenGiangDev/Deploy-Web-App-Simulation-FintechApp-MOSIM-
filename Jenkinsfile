@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    parameters {
-        booleanParam(name: 'FORCE_BUILD_ALL', defaultValue: false, description: 'Build toàn bộ services bất kể có thay đổi hay không')
-    }
-
     environment {
         ECR_URL = "676206906655.dkr.ecr.ap-southeast-1.amazonaws.com/fintech_web_app"
         REGION  = "ap-southeast-1"
@@ -27,41 +23,34 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
+                    sh "git fetch origin main"
+                    def changedFiles = sh(
+                        script: "git diff --name-only origin/main...HEAD",
+                        returnStdout: true
+                    ).trim().split("\n")
+                    echo "📄 Files changed:\n${changedFiles.join('\n')}"
+
                     def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
+                    def changedServices = [] as Set
 
-                    if (params.FORCE_BUILD_ALL) {
-                        echo "⚡ FORCE_BUILD_ALL = true → Build toàn bộ services."
-                        env.CHANGED_SERVICES = allServices.join(" ")
-                    } else {
-                        sh "git fetch origin main"
-                        def changedFiles = sh(
-                            script: "git diff --name-only origin/main...HEAD",
-                            returnStdout: true
-                        ).trim().split("\n")
-                        echo "📄 Files changed:\n${changedFiles.join('\n')}"
-
-                        def changedServices = [] as Set
-
-                        for (file in changedFiles) {
-                            def topDir = file.tokenize('/')[0]
-                            if (allServices.contains(topDir)) {
-                                changedServices << topDir
-                            } else if (topDir == "common-lib" || topDir == "config") {
-                                changedServices.addAll(allServices)
-                                break
-                            }
+                    for (file in changedFiles) {
+                        def topDir = file.tokenize('/')[0]
+                        if (allServices.contains(topDir)) {
+                            changedServices << topDir
+                        } else if (topDir == "common-lib" || topDir == "config") {
+                            changedServices.addAll(allServices)
+                            break
                         }
-
-                        if (changedServices.isEmpty()) {
-                            echo "⚡ Không có service nào thay đổi. Dừng pipeline."
-                            currentBuild.result = 'SUCCESS'
-                            error("Stop build - no services changed")
-                        }
-
-                        env.CHANGED_SERVICES = changedServices.join(" ")
                     }
 
-                    echo "📦 Các service sẽ build: ${env.CHANGED_SERVICES}"
+                    if (changedServices.isEmpty()) {
+                        echo "⚡ Không có service nào thay đổi. Dừng pipeline."
+                        currentBuild.result = 'SUCCESS'
+                        error("Stop build - no services changed")
+                    }
+
+                    env.CHANGED_SERVICES = changedServices.join(" ")
+                    echo "📦 Các service thay đổi: ${env.CHANGED_SERVICES}"
                 }
             }
         }
@@ -173,7 +162,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deploy dev environment success !"
+            echo "✅ Triển khai webapp trên môi trường web thành công !"
         }
         failure {
             echo "❌ Pipeline failed. Please check logs."
