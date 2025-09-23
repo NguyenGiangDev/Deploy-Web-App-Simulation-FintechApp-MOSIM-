@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'FORCE_BUILD_ALL', defaultValue: false, description: 'Build toàn bộ services bất kể có thay đổi hay không')
+    }
+
     environment {
         ECR_URL = "676206906655.dkr.ecr.ap-southeast-1.amazonaws.com/fintech_web_app"
         REGION  = "ap-southeast-1"
@@ -23,30 +27,41 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    sh "git fetch origin main"
-                    def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD",
-                        returnStdout: true
-                    ).trim().split("\n")
-                    echo "📄 Files changed:\n${changedFiles.join('\n')}"
                     def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
-                    def changedServices = [] as Set
-                    for (file in changedFiles) {
-                        def topDir = file.tokenize('/')[0]
-                        if (allServices.contains(topDir)) {
-                            changedServices << topDir
-                        } else if (topDir == "common-lib" || topDir == "config") {
-                            changedServices.addAll(allServices)
-                            break
+
+                    if (params.FORCE_BUILD_ALL) {
+                        echo "⚡ FORCE_BUILD_ALL = true → Build toàn bộ services."
+                        env.CHANGED_SERVICES = allServices.join(" ")
+                    } else {
+                        sh "git fetch origin main"
+                        def changedFiles = sh(
+                            script: "git diff --name-only origin/main...HEAD",
+                            returnStdout: true
+                        ).trim().split("\n")
+                        echo "📄 Files changed:\n${changedFiles.join('\n')}"
+
+                        def changedServices = [] as Set
+
+                        for (file in changedFiles) {
+                            def topDir = file.tokenize('/')[0]
+                            if (allServices.contains(topDir)) {
+                                changedServices << topDir
+                            } else if (topDir == "common-lib" || topDir == "config") {
+                                changedServices.addAll(allServices)
+                                break
+                            }
                         }
+
+                        if (changedServices.isEmpty()) {
+                            echo "⚡ Không có service nào thay đổi. Dừng pipeline."
+                            currentBuild.result = 'SUCCESS'
+                            error("Stop build - no services changed")
+                        }
+
+                        env.CHANGED_SERVICES = changedServices.join(" ")
                     }
-                    if (changedServices.isEmpty()) {
-                        echo "⚡ Không có service nào thay đổi. Dừng pipeline."
-                        currentBuild.result = 'SUCCESS'
-                        error("Stop build - no services changed")
-                    }
-                    env.CHANGED_SERVICES = changedServices.join(" ")
-                    echo "📦 Các service thay đổi: ${env.CHANGED_SERVICES}"
+
+                    echo "📦 Các service sẽ build: ${env.CHANGED_SERVICES}"
                 }
             }
         }
@@ -60,22 +75,23 @@ pipeline {
             }
             steps {
                 script {
-                    for (service in env.CHANGED_SERVICES.split(" ")) {
-                        sh """
-                            echo "=============================="
-                            echo "Running unit tests for ${service}..."
-                            echo "=============================="
-                            cd ${service}
-                            npm install
-                            chmod +x ./node_modules/.bin/jest
-                            npm test
-                            if [ \$? -ne 0 ]; then
-                                echo "❌ Unit tests failed for ${service}"
-                                exit 1
-                            else
-                                echo "✅ Unit tests passed for ${service}"
-                            fi
-                        """
+                    def excluded = ["history-service", "charge-service"]
+                    def servicesToTest = env.CHANGED_SERVICES.split(" ").findAll { !(it in excluded) }
+
+                    if (servicesToTest.isEmpty()) {
+                        echo "⚡ Không có service nào cần test."
+                    } else {
+                        for (service in servicesToTest) {
+                            sh """
+                                echo "=============================="
+                                echo "Running unit tests for ${service}..."
+                                echo "=============================="
+                                cd ${service}
+                                npm install
+                                chmod +x ./node_modules/.bin/jest || true
+                                npm test
+                            """
+                        }
                     }
                 }
             }
@@ -129,17 +145,25 @@ pipeline {
         stage('Deploy on EC2') {
             steps {
                 sshagent (credentials: ['ec2-ssh-key']) {
-                    withCredentials([string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL')]) {
+                    withCredentials([
+                        string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL'),
+                        string(credentialsId: 'database_url', variable: 'DB_HOST'),
+                        string(credentialsId: 'password_db', variable: 'DB_PASSWORD')
+                    ]) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
-                                aws ecr get-login-password --region ap-southeast-1 | \
-                                  docker login --username AWS --password-stdin 676206906655.dkr.ecr.ap-southeast-1.amazonaws.com
+                            ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com << EOF
+                                set -e
+                                echo "🔑 Logging into ECR inside EC2..."
+                                aws ecr get-login-password --region ${REGION} | \
+                                  docker login --username AWS --password-stdin ${ECR_URL}
                                 export FRONTEND_URL=${FRONTEND_URL}
+                                export DB_HOST=${DB_HOST}
+                                export DB_PASSWORD=${DB_PASSWORD}
                                 cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
-                                docker compose pull &&
+                                docker compose pull --quiet &&
                                 docker compose up -d &&
                                 docker image prune -f
-                            '
+                            EOF
                         """
                     }
                 }

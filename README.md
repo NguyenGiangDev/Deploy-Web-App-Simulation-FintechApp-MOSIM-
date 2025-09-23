@@ -65,3 +65,5 @@ The system follows a **microservice architecture**, where the frontend communica
 - Add monitoring and alerting via AWS CloudWatch or Prometheus.
 - Introduce CI/CD pipelines for automated testing and deployment.
 
+
+
