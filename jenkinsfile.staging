@@ -1,0 +1,124 @@
+pipeline {
+    agent any
+
+    environment {
+        ARM_CLIENT_ID       = credentials('azure-client-id')
+        ARM_CLIENT_SECRET   = credentials('azure-client-secret')
+        ARM_SUBSCRIPTION_ID = 'c03f51e7-aefb-44ae-a3ee-01b6370d8ce6'
+        ARM_TENANT_ID       = '9a3c7dbb-998f-4c88-ad25-139728850b98'
+        AZURE_CR_NAME       = "fintechdevopsacr123ntech"
+        AZURE_CR_SERVER     = "fintechdevopsacr123ntech-f4aadcc8c4f2daaa.azurecr.io"
+        IMAGE_TAG           = "v${env.BUILD_ID}"
+    }
+
+    stages {
+        stage('Build on Staging only') {
+            when { branch 'main' }
+            steps {
+                echo "🚀 Running build because this is main branch"
+            }
+        }
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Azure Login') {
+            steps {
+                sh '''
+                    az login --service-principal \
+                        -u $ARM_CLIENT_ID \
+                        -p $ARM_CLIENT_SECRET \
+                        --tenant $ARM_TENANT_ID
+
+                    az account set --subscription $ARM_SUBSCRIPTION_ID
+                    az acr login --name $AZURE_CR_NAME
+                '''
+            }
+        }
+
+        stage('Detect Changed Services') {
+            steps {
+                script {
+                    sh "git fetch origin main"
+                    def changedFiles = sh(
+                        script: "git diff --name-only HEAD~1 HEAD",
+                        returnStdout: true
+                    ).trim().split("\n")
+
+                    echo "📄 Files changed:\n${changedFiles.join('\n')}"
+
+                    def allServices = ["api-gateway", "auth-service", "charge-service", "history-service", "transaction-service"]
+                    def changedServices = [] as Set
+
+                    for (file in changedFiles) {
+                        def topDir = file.tokenize('/')[0]
+                        if (allServices.contains(topDir)) {
+                            changedServices << topDir
+                        } else if (topDir == "common-lib" || topDir == "config") {
+                            changedServices.addAll(allServices)
+                            break
+                        }
+                    }
+
+                    if (changedServices.isEmpty()) {
+                        echo "⚡ Không có service nào thay đổi. Dừng pipeline."
+                        currentBuild.result = 'SUCCESS'
+                        error("Stop build - no services changed")
+                    }
+
+                    env.CHANGED_SERVICES = changedServices.join(" ")
+                    echo "📦 Các service thay đổi: ${env.CHANGED_SERVICES}"
+                }
+            }
+        }
+
+        stage('Build, Scan & Push Docker Images') {
+            steps {
+                script {
+                    for (service in env.CHANGED_SERVICES.split(" ")) {
+                        sh """
+                            IMAGE_NAME=\$(echo ${service} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+                            echo "🚀 Building and pushing \$AZURE_CR_SERVER/\$IMAGE_NAME:\$IMAGE_TAG"
+                            docker build -t \$AZURE_CR_SERVER/\$IMAGE_NAME:\$IMAGE_TAG ./${service}
+                            docker push \$AZURE_CR_SERVER/\$IMAGE_NAME:\$IMAGE_TAG
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Update Repo Helm-Chart') {
+            steps {
+                script {
+                    sh """
+                        git clone https://github.com/NguyenGiangDev/Helm-chart-Deploy.git
+                        cd Helm-chart-Deploy
+                        git config user.name "NguyenGiangDev"
+                        git config user.email "nguyengiangdevw@gmail.com"
+
+                        for service in ${CHANGED_SERVICES}; do
+                          IMAGE_NAME=\$(echo \$service | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+                          sed -i "s|\(repository: .*/\$IMAGE_NAME.*\)\\n *tag: .*|\1\\n  tag: ${IMAGE_TAG}|" values.yaml
+                        done
+
+                        git add values.yaml
+                        git commit -m "Update image tags to ${IMAGE_TAG}"
+                        git push origin main
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Success !"
+        }
+        failure {
+            echo "❌ Pipeline failed. Please check logs."
+        }
+    }
+}
