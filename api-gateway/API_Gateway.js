@@ -20,7 +20,6 @@ if (process.env.NODE_ENV === 'local') {
 
 
 const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
-//Log biến môi trường để kiểm tra xem nó có tồn tại không ?
 console.log("Front-end kiểm tra url:", ENV_FRONTEND_URL);
 
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:3001";
@@ -207,5 +206,5 @@ app.post('/api/transfer', async (req, res) => {
 });
 
 
-// Export app để dùng trong server.js và test
+// Export app để dùng trong server.js và test unit
 module.exports = app;
