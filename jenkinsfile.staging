@@ -91,26 +91,27 @@ pipeline {
         }
 
         stage('Update Repo Helm-Chart') {
-            steps {
-                script {
-                    sh """
-                        git clone https://github.com/NguyenGiangDev/Helm-chart-Deploy.git
-                        cd Helm-chart-Deploy
-                        git config user.name "NguyenGiangDev"
-                        git config user.email "nguyengiangdevw@gmail.com"
+    steps {
+        script {
+            sh """
+                git clone https://github.com/NguyenGiangDev/Helm-chart-Deploy.git
+                cd Helm-chart-Deploy
+                git config user.name "NguyenGiangDev"
+                git config user.email "nguyengiangdevw@gmail.com"
 
-                        for service in ${CHANGED_SERVICES}; do
-                          IMAGE_NAME=\$(echo \$service | tr '_' '-' | tr '[:upper:]' '[:lower:]')
-                          sed -i "s|\(repository: .*/\$IMAGE_NAME.*\)\\n *tag: .*|\1\\n  tag: ${IMAGE_TAG}|" values.yaml
-                        done
+                for service in ${CHANGED_SERVICES}; do
+                  IMAGE_NAME=\$(echo \$service | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+                  sed -i "s|\\(repository: .*/\$IMAGE_NAME.*\\)[[:space:]]*tag:.*|\\1\\n  tag: ${IMAGE_TAG}|" values.yaml
+                done
 
-                        git add values.yaml
-                        git commit -m "Update image tags to ${IMAGE_TAG}"
-                        git push origin main
-                    """
-                }
-            }
+                git add values.yaml
+                git commit -m "Update image tags to ${IMAGE_TAG}"
+                git push origin main
+            """
         }
+    }
+}
+
     }
 
     post {
