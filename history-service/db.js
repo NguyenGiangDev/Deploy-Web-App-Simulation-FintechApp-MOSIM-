@@ -11,5 +11,5 @@ const pool = new Pool({
     rejectUnauthorized: false   // bắt buộc để bỏ qua check cert khi connect RDS
   }
 });
-
+// export để tái sử dụng trong file index.js
 module.exports = pool;
