@@ -22,6 +22,7 @@ if (process.env.NODE_ENV === 'local') {
 const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
 console.log("Front-end kiểm tra url:", ENV_FRONTEND_URL);
 
+// URL các service
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:3001";
 const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
 const HISTORY_SERVICE_URL = process.env.HISTORY_SERVICE_URL || "http://history-service:3003";
