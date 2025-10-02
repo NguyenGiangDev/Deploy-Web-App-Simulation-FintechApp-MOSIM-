@@ -17,14 +17,12 @@ pipeline {
 
     stages {
         stage('Checkout Code') {
-            when { branch 'main' }
             steps {
                 checkout scm
             }
         }
 
         stage('Azure Login') {
-            when { branch 'main' }
             steps {
                 sh '''
                     az login --service-principal \
@@ -39,7 +37,6 @@ pipeline {
         }
 
         stage('Detect Changed Services') {
-            when { branch 'main' }
             steps {
                 script {
                     sh "git fetch origin main"
@@ -76,7 +73,6 @@ pipeline {
         }
 
         stage('Build, Scan & Push Docker Images') {
-            when { branch 'main' }
             steps {
                 script {
                     for (service in env.CHANGED_SERVICES.split(" ")) {
@@ -92,7 +88,6 @@ pipeline {
         }
 
         stage('Update Repo Helm-Chart') {
-            when { branch 'main' }
             steps {
                 script {
                     deleteDir()
