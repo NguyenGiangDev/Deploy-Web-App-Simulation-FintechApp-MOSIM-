@@ -131,33 +131,36 @@ pipeline {
             }
         }
 
-        stage('Deploy on EC2') {
-            steps {
-                sshagent (credentials: ['ec2-ssh-key']) {
-                    withCredentials([
-                        string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL'),
-                        string(credentialsId: 'database_url', variable: 'DB_HOST'),
-                        string(credentialsId: 'password_db', variable: 'DB_PASSWORD')
-                    ]) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com << EOF
-                                set -e
-                                echo "🔑 Logging into ECR inside EC2..."
-                                aws ecr get-login-password --region ${REGION} | \
-                                  docker login --username AWS --password-stdin ${ECR_URL}
-                                export FRONTEND_URL=${FRONTEND_URL}
-                                export DB_HOST=${DB_HOST}
-                                export DB_PASSWORD=${DB_PASSWORD}
-                                cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
-                                docker compose pull --quiet &&
-                                docker compose up -d &&
-                                docker image prune -f
-                            EOF
-                        """
-                    }
-                }
+     stage('Deploy on EC2') {
+    steps {
+        sshagent (credentials: ['ec2-ssh-key']) {
+            withCredentials([
+                string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL'),
+                string(credentialsId: 'database_url', variable: 'DB_HOST'),
+                string(credentialsId: 'password_db', variable: 'DB_PASSWORD')
+            ]) {
+                sh """
+                    ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
+                        set -e
+                        echo "🔑 Logging into ECR inside EC2..."
+                        aws ecr get-login-password --region ${REGION} | \
+                          docker login --username AWS --password-stdin ${ECR_URL}
+
+                        export FRONTEND_URL=${FRONTEND_URL}
+                        export DB_HOST=${DB_HOST}
+                        export DB_PASSWORD=${DB_PASSWORD}
+
+                        cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
+                        docker compose pull --quiet &&
+                        docker compose up -d &&
+                        docker image prune -f
+                    '
+                """
             }
         }
+    }
+}
+
     }
 
     post {
