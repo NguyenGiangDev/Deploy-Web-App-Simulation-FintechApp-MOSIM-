@@ -105,5 +105,5 @@ app.get('/test-db', async (req, res) => {
     res.status(500).json({ message: 'DB connection failed' });
   }
 });
-// Xuất
+// Xuất file app để server.js sử dụng
 module.exports = app;
