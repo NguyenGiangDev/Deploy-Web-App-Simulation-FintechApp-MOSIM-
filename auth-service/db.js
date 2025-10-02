@@ -9,7 +9,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   database: "wallet_auth", 
   ssl: {
-    rejectUnauthorized: false   // bắt buộc để bỏ qua check cert khi connect RDS
+    rejectUnauthorized: false   
   }
 });
 
