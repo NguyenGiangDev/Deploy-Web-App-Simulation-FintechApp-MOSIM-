@@ -1,6 +1,13 @@
 pipeline {
     agent any
 
+   options {
+        skipDefaultCheckout() // Jenkins không checkout auto
+    }
+
+    when {
+        branch 'main'   // ✅ cả pipeline chỉ chạy nếu branch là main
+    }
     environment {
         ARM_CLIENT_ID       = credentials('azure-client-id')
         ARM_CLIENT_SECRET   = credentials('azure-client-secret')
@@ -12,13 +19,6 @@ pipeline {
     }
 
     stages {
-        stage('Build on Staging only') {
-            when { branch 'main' }
-            steps {
-                echo "🚀 Running build because this is main branch"
-            }
-        }
-
         stage('Checkout Code') {
             steps {
                 checkout scm
