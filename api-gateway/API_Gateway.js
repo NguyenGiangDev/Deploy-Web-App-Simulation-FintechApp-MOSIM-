@@ -18,7 +18,7 @@ if (process.env.NODE_ENV === 'local') {
   console.log("Loaded default .env");
 }
 
-
+// Kiểm tra biến môi trường
 const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
 console.log("Front-end kiểm tra url:", ENV_FRONTEND_URL);
 

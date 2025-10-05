@@ -1,4 +1,4 @@
-// index.js
+
 const app = require('./app');
 const pool = require('./db');
 
