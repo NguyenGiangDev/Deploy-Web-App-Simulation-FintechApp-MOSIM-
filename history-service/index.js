@@ -2,13 +2,12 @@ const express = require('express');
 const app = express();
 const pool = require('./db');
 require('dotenv').config();
-
 app.use(express.json());
 
 // Khởi động server history service
 pool.query('SELECT 1')
   .then(() => {
-    console.log('✅ Kết nối database thành công');
+    console.log('✅ Kết nối database history thành công');
     app.listen(3003, () => {
       console.log('Charge service listening on port 3003');
     });
@@ -17,6 +16,8 @@ pool.query('SELECT 1')
     console.error('❌ Kết nối database thất bại', err);
     process.exit(1);
   });
+
+
 // Kiểm tra kết nối DB
 app.get('/test-db', async (req, res) => {
   try {
@@ -43,6 +44,7 @@ app.post('/add-history', async (req, res) => {
   }
 });
 
+
 // Lấy lịch sử giao dịch theo username và phone_number
 app.post('/history', async (req, res) => {
     const { username, phone_number } = req.body;
@@ -64,4 +66,5 @@ app.post('/history', async (req, res) => {
         res.status(500).json({ error: 'Lỗi server khi lấy lịch sử nạp tiền' });
     }
 });
+
 
