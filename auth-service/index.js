@@ -1,10 +1,19 @@
-// index.js
 const app = require('./app');
 const pool = require('./db');
+const client = require('prom-client'); // Prometheus client
 
 const PORT = process.env.PORT || 3001;
 
-// Kiểm tra kết nối DB trước khi start server
+// --- Thiết lập Prometheus metrics ---
+client.collectDefaultMetrics(); // CPU, memory, event loop
+
+// Endpoint /metrics để Prometheus scrape
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
+
+// --- Kiểm tra kết nối DB trước khi start server ---
 pool.query('SELECT 1')
   .then(() => {
     console.log('✅ Kết nối database thành công');
