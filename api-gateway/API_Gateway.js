@@ -7,7 +7,16 @@ const morgan = require('morgan');
 const winston = require('winston');
 
 const app = express();
-
+// ================= Elastic APM Agent =================
+require('elastic-apm-node').start({
+  serviceName: 'api-gateway',
+  serverUrl: 'http://apm-server.monitoring.svc.cluster.local:8200',
+  secretToken:  'XyZ123!@#secureToken456',
+  environment: process.env.NODE_ENV || 'production',
+  captureBody: 'all',
+  captureHeaders: true,
+  active: true,
+});
 // ================= Logger setup =================
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'local' ? 'debug' : 'info',
@@ -34,6 +43,7 @@ if (process.env.NODE_ENV === 'local') {
   logger.info("Loaded default .env");
 }
 
+
 const ENV_FRONTEND_URL = process.env.ENV_FRONTEND_URL;
 logger.info("Front-end kiểm tra URL:", { ENV_FRONTEND_URL });
 
@@ -42,6 +52,29 @@ const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth-service:30
 const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
 const HISTORY_SERVICE_URL = process.env.HISTORY_SERVICE_URL || "http://history-service:3003";
 const TRANSACTION_SERVICE_URL = process.env.TRANSACTION_SERVICE_URL || "http://transaction-service:3004";
+
+//-----Thêm endpoint để cập nhật dữ liệu cho heartbeat----
+app.get('/healthz', async (req, res) => {
+  const services = { auth: AUTH_SERVICE_URL, charge: CHARGE_SERVICE_URL, history: HISTORY_SERVICE_URL, transaction: TRANSACTION_SERVICE_URL };
+  const results = {};
+  let allOk = true;
+
+  for (const [name, url] of Object.entries(services)) {
+    try {
+      await axios.get(url);
+      results[name] = 'ok';
+    } catch (err) {
+      results[name] = 'unreachable';
+      allOk = false;
+    }
+  }
+
+  res.status(allOk ? 200 : 500).json({
+    gateway: 'ok',
+    services: results,
+    service: 'api-gateway'
+  });
+});
 
 // ================= Middlewares =================
 app.use(cors({
