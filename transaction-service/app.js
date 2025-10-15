@@ -9,8 +9,21 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
 app.use(express.json());
 
-// Lấy URL charge-service từ biến môi trường
+// ================= Elastic APM Agent =================
+require('elastic-apm-node').start({
+  serviceName: 'transaction-service',
+  serverUrl: 'http://apm-server.monitoring.svc.cluster.local:8200',
+  secretToken:  'XyZ123!@#secureToken456',
+  environment: process.env.NODE_ENV || 'production',
+  captureBody: 'all',
+  captureHeaders: true,
+  active: true,
+});
 
+
+
+
+// Lấy URL charge-service từ biến môi trường
 const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
 
 
