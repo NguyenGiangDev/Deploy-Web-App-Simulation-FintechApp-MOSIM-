@@ -4,6 +4,15 @@ const pool = require('./db');
 require('dotenv').config();
 app.use(express.json());
 
+// ===============API End point================
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'history-service',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Khởi động server history service
 pool.query('SELECT 1')
   .then(() => {

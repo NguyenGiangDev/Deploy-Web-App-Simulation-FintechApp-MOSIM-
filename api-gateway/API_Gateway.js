@@ -59,15 +59,16 @@ app.get('/healthz', async (req, res) => {
   const results = {};
   let allOk = true;
 
-  for (const [name, url] of Object.entries(services)) {
-    try {
-      await axios.get(url);
-      results[name] = 'ok';
-    } catch (err) {
-      results[name] = 'unreachable';
-      allOk = false;
-    }
+ for (const [name, url] of Object.entries(services)) {
+  try {
+    await axios.get(`${url}/healthz`);
+    results[name] = 'ok';
+  } catch (err) {
+    results[name] = 'unreachable';
+    allOk = false;
   }
+}
+
 
   res.status(allOk ? 200 : 500).json({
     gateway: 'ok',

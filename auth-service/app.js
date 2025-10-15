@@ -16,6 +16,15 @@ require('elastic-apm-node').start({
   active: true,
 });
 
+// ===============API End point================
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'auth-service',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Đăng ký người dùng
 app.post('/register', async (req, res) => {
   const { name, phone_number, password } = req.body;
