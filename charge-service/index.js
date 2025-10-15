@@ -5,6 +5,14 @@ require('dotenv').config();
 
 app.use(express.json());
 
+// ===============API End point================
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'charge-service',
+    timestamp: new Date().toISOString()
+  });
+});
 // Kiểm tra kết nối DB
 app.get('/test-db', async (req, res) => {
   try {

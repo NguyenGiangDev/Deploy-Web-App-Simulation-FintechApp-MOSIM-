@@ -20,6 +20,15 @@ require('elastic-apm-node').start({
   active: true,
 });
 
+// ===============API End point================
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'transaction-service',
+    timestamp: new Date().toISOString()
+  });
+});
+
 
 
 
