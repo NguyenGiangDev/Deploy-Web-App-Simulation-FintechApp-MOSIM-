@@ -1,14 +1,3 @@
-// ================= Elastic APM Agent =================
-require('elastic-apm-node').start({
-  serviceName: 'transaction-service',
-  serverUrl: 'http://apm-server.argocd.svc.cluster.local:8200',
-  secretToken: 'XyZ123!@#secureToken456',
-  environment: process.env.NODE_ENV || 'production',
-  captureBody: 'all',
-  captureHeaders: true,
-  active: true,
-});
-
 
 const express = require('express');
 const axios = require('axios');
