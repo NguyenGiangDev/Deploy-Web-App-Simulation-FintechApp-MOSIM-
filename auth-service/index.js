@@ -1,17 +1,20 @@
+// ================= Elastic APM Agent =================
+// ⚠️ Phải đặt ở dòng đầu tiên!
+require('elastic-apm-node').start({
+  serviceName: 'auth-service', // Tên service (chỉnh đúng theo từng service)
+  serverUrl: 'http://apm-server.argocd.svc.cluster.local:8200',
+  secretToken: 'XyZ123!@#secureToken456',
+  environment: process.env.NODE_ENV || 'production',
+  captureBody: 'all',
+  captureHeaders: true,
+  active: true,
+});
+
+// ================= Service Logic =================
 const app = require('./app');
 const pool = require('./db');
-const client = require('prom-client'); // Prometheus client
 
 const PORT = process.env.PORT || 3001;
-
-// --- Thiết lập Prometheus metrics ---
-client.collectDefaultMetrics(); // CPU, memory, event loop
-
-// Endpoint /metrics để Prometheus scrape
-app.get('/metrics', async (req, res) => {
-  res.set('Content-Type', client.register.contentType);
-  res.end(await client.register.metrics());
-});
 
 // --- Kiểm tra kết nối DB trước khi start server ---
 pool.query('SELECT 1')
