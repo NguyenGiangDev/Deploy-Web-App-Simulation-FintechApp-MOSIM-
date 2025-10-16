@@ -1,3 +1,4 @@
+
 const path = require('path');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -7,16 +8,7 @@ const morgan = require('morgan');
 const winston = require('winston');
 
 const app = express();
-// ================= Elastic APM Agent =================
-require('elastic-apm-node').start({
-  serviceName: 'api-gateway',
-  serverUrl: 'http://apm-server.monitoring.svc.cluster.local:8200',
-  secretToken:  'XyZ123!@#secureToken456',
-  environment: process.env.NODE_ENV || 'production',
-  captureBody: 'all',
-  captureHeaders: true,
-  active: true,
-});
+
 // ================= Logger setup =================
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'local' ? 'debug' : 'info',
