@@ -137,7 +137,9 @@ pipeline {
             withCredentials([
                 string(credentialsId: 'frontend_url', variable: 'FRONTEND_URL'),
                 string(credentialsId: 'database_url', variable: 'DB_HOST'),
-                string(credentialsId: 'password_db', variable: 'DB_PASSWORD')
+                string(credentialsId: 'password_db', variable: 'DB_PASSWORD'),
+                string(credentialsId: 'apm-token', variable: 'SECRET_TOKEN'),
+                string(credentialsId: 'apm-environment', variable: 'ENVIRONMENT')
             ]) {
                 sh """
                     ssh -o StrictHostKeyChecking=no ubuntu@ec2-54-169-85-203.ap-southeast-1.compute.amazonaws.com '
@@ -149,6 +151,8 @@ pipeline {
                         export FRONTEND_URL=${FRONTEND_URL}
                         export DB_HOST=${DB_HOST}
                         export DB_PASSWORD=${DB_PASSWORD}
+                        export SECRET_TOKEN=${SECRET_TOKEN}
+                        export ENVIRONMENT=${ENVIRONMENT}
 
                         cd /home/ubuntu/Web-App-Simulation-FintechApp-MOSIM- &&
                         docker compose pull --quiet &&

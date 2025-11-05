@@ -1,10 +1,9 @@
 // ================= Elastic APM Agent =================
-// ⚠️ Phải đặt ở dòng đầu tiên!
 require('elastic-apm-node').start({
-  serviceName: 'api-gateway', // Tên service (chỉnh đúng theo từng service)
-  serverUrl: 'http://apm-server.argocd.svc.cluster.local:8200',
-  secretToken: 'XyZ123!@#secureToken456',
-  environment: process.env.NODE_ENV || 'production',
+  serviceName: 'api-gateway', 
+  serverUrl: 'http://apm-server:8200',
+  secretToken: process.env.SECRET_TOKEN,
+  environment: process.env.ENVIRONMENT,
   captureBody: 'all',
   captureHeaders: true,
   active: true,
