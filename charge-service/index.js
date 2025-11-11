@@ -92,68 +92,96 @@ app.post('/get-balance', async (req, res) => {
   }
 });
 
-// Atomic transfer endpoint: check sender balance, deduct, credit receiver in one DB transaction
-app.post('/api/transfer-between-accounts', async (req, res) => {
-  const { from_user, from_phone_number, to_user, to_phone_number, amount } = req.body;
-  if (!from_user || !from_phone_number || !to_user || !to_phone_number || !amount) {
-    return res.status(400).json({ success: false, message: 'Thiếu tham số' });
-  }
-
-  const numericAmount = parseFloat(amount);
-  if (isNaN(numericAmount) || numericAmount <= 0) {
-    return res.status(400).json({ success: false, message: 'Số tiền không hợp lệ' });
-  }
-
-  const client = await pool.connect();
+// Kiểm tra số dư
+app.post('/api/check-balance', async (req, res) => {
+  const { username, phone_number, amount } = req.body;
   try {
-    await client.query('BEGIN');
-
-    // Lock sender row
-    const senderRes = await client.query(
-      'SELECT amount FROM charge WHERE username=$1 AND phone_number=$2 FOR UPDATE',
-      [from_user, from_phone_number]
+    const result = await pool.query(
+      'SELECT amount AS balance FROM charge WHERE username = $1 AND phone_number = $2',
+      [username, phone_number]
     );
 
-    if (senderRes.rows.length === 0) {
-      // Sender not found
-      await client.query('ROLLBACK');
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng', flag: false });
+    }
+
+    const balance = parseFloat(result.rows[0].balance);
+
+    if (balance >= amount) {
+      return res.json({ message: 'Số dư đủ để thực hiện giao dịch', flag: true });
+    } else {
+      return res.status(400).json({ message: 'Số dư không đủ để thực hiện giao dịch', flag: false });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Lỗi server', flag: false });
+  }
+});
+
+// Trừ tiền người gửi
+app.post('/api/transfer-money', async (req, res) => {
+  const { from_user, from_phone_number, amount } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE charge SET amount = amount - $1 WHERE username = $2 AND phone_number = $3 RETURNING amount',
+      [amount, from_user, from_phone_number]
+    );
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Người gửi không tồn tại' });
     }
 
-    const senderBalance = parseFloat(senderRes.rows[0].amount);
-    if (senderBalance < numericAmount) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ success: false, message: 'Số dư không đủ' });
-    }
+    return res.json({ success: true, remaining: result.rows[0].amount });
+  } catch (err) {
+    console.error('Lỗi khi trừ tiền:', err);
+    return res.status(500).json({ success: false, message: 'Lỗi server khi trừ tiền' });
+  }
+});
 
-    // Deduct from sender
-    const deductRes = await client.query(
-      'UPDATE charge SET amount = amount - $1 WHERE username=$2 AND phone_number=$3 RETURNING amount',
-      [numericAmount, from_user, from_phone_number]
+// Cộng tiền người nhận
+app.post('/api/add-money', async (req, res) => {
+  const { to_user, to_phone_number, amount } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE charge SET amount = amount + $1 WHERE username = $2 AND phone_number = $3 RETURNING amount',
+      [amount, to_user, to_phone_number]
     );
 
-    // Add to receiver with upsert (single statement)
-    const upsertRes = await client.query(`
-      INSERT INTO charge (username, phone_number, amount)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (username, phone_number)
-      DO UPDATE SET amount = charge.amount + EXCLUDED.amount
-      RETURNING amount
-    `, [to_user, to_phone_number, numericAmount]);
+    if (result.rows.length === 0) {
+       await pool.query(
+        'INSERT INTO charge (username, phone_number, amount) VALUES ($1, $2, $3)',
+        [to_user, to_phone_number, amount]
+      );
+      return res.json({success:true, new_balance: amount});
+    }
 
-    await client.query('COMMIT');
-
-    return res.json({
-      success: true,
-      from_remaining: deductRes.rows[0].amount,
-      to_new_balance: upsertRes.rows[0].amount
-    });
+    return res.json({ success: true, new_balance: result.rows[0].amount });
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
-    console.error('[charge-service] transfer error:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server khi chuyển tiền' });
-  } finally {
-    client.release();
+    console.error('Lỗi khi cộng tiền:', err);
+    return res.status(500).json({ success: false, message: 'Lỗi server khi cộng tiền' });
+  }
+});
+
+// Rollback: hoàn tiền lại cho người gửi
+app.post('/api/rollback', async (req, res) => {
+  const { from_user, from_phone_number, amount } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE charge SET amount = amount + $1 WHERE username = $2 AND phone_number = $3 RETURNING amount',
+      [amount, from_user, from_phone_number]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Người gửi không tồn tại để rollback' });
+    }
+
+    return res.json({ success: true, restored_amount: result.rows[0].amount });
+  } catch (err) {
+    console.error('Lỗi rollback:', err);
+    return res.status(500).json({ success: false, message: 'Lỗi server khi rollback' });
   }
 });
 

@@ -1,7 +1,6 @@
 // ================= Elastic APM Agent =================
-// ⚠️ Phải đặt ở dòng đầu tiên!
 require('elastic-apm-node').start({
-  serviceName: 'history-service', // Tên service (chỉnh đúng theo từng service)
+  serviceName: 'history-service',
   serverUrl: 'http://apm-server:8200',
   secretToken: process.env.SECRET_TOKEN,
   environment: process.env.ENVIRONMENT,

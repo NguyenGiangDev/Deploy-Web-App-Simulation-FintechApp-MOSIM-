@@ -1,88 +1,109 @@
-// transaction-service/app.js
-require('dotenv').config();
+
 const express = require('express');
 const axios = require('axios');
-const http = require('http');
-const https = require('https');
-const { Pool } = require('pg');
-
+const path = require('path');
 const app = express();
+const pool = require('./db');
+
+// Load biến môi trường từ .env.local
+require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+
 app.use(express.json());
 
-// DB pool cho transaction-service (ghi lịch sử giao dịch)
-const pool = new Pool({
-  connectionString: process.env.TRANSACTION_DATABASE_URL,
-  max: parseInt(process.env.DB_MAX_CONN || '10', 10)
+
+// ===============API End point================
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'transaction-service',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Axios instance with keep-alive and timeouts
-const axiosInstance = axios.create({
-  baseURL: process.env.CHARGE_SERVICE_URL || 'http://charge-service:3002',
-  timeout: 5000,
-  httpAgent: new http.Agent({ keepAlive: true }),
-  httpsAgent: new https.Agent({ keepAlive: true }),
-});
 
-// retry helper
-async function safePost(url, data, retries = 3, backoff = 150) {
-  let lastErr;
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await axiosInstance.post(url, data);
-    } catch (err) {
-      lastErr = err;
-      // if final try -> throw
-      if (i === retries - 1) break;
-      // small backoff
-      await new Promise(r => setTimeout(r, backoff * (i + 1)));
-    }
-  }
-  throw lastErr;
-}
 
-// Health
-app.get('/healthz', (req, res) => res.json({ status: 'ok', service: 'transaction-service', ts: new Date().toISOString() }));
 
-// Transfer: call charge-service single endpoint then persist transaction log
+// Lấy URL charge-service từ biến môi trường
+const CHARGE_SERVICE_URL = process.env.CHARGE_SERVICE_URL || "http://charge-service:3002";
+
+
+// Chuyển tiền
 app.post('/transfer', async (req, res) => {
   const { from_user, to_user, from_phone_number, to_phone_number, amount, transaction_realtime } = req.body;
-  if (!from_user || !to_user || !from_phone_number || !to_phone_number || !amount) {
-    return res.status(400).json({ success: false, message: 'Thiếu tham số' });
-  }
-
   try {
-    // 1) Call charge-service atomic transfer
-    const chargeResp = await safePost('/api/transfer-between-accounts', {
-      from_user, from_phone_number, to_user, to_phone_number, amount
+    // 1. Kiểm tra số dư
+    const balanceRes = await axios.post(`${CHARGE_SERVICE_URL}/api/check-balance`, {
+      username: from_user,
+      phone_number: from_phone_number,
+      amount
     });
 
-    if (!chargeResp.data || !chargeResp.data.success) {
-      return res.status(400).json({ success: false, message: chargeResp.data?.message || 'Không thể chuyển tiền' });
+    if (!balanceRes.data.flag) {
+      return res.status(400).json({ success: false, error: 'Số dư không đủ để chuyển tiền.' });
     }
 
-    // 2) Persist transaction log (non-blocking pattern: ensure log but keep simple)
+    // 2. Trừ tiền người gửi
+    const deductRes = await axios.post(`${CHARGE_SERVICE_URL}/api/transfer-money`, {
+      from_user,
+      from_phone_number,
+      amount
+    });
+
+    if (!deductRes.data.success) {
+      return res.status(500).json({ success: false, error: 'Lỗi khi trừ tiền người gửi.' });
+    }
+
+    // 3. Cộng tiền người nhận
+    const addRes = await axios.post(`${CHARGE_SERVICE_URL}/api/add-money`, {
+      to_user,
+      to_phone_number,
+      amount
+    });
+
+    if (!addRes.data.success) {
+      // ❌ Rollback: Cộng lại tiền cho người gửi
+      await axios.post(`${CHARGE_SERVICE_URL}/api/rollback`, {
+        from_user,
+        from_phone_number,
+        amount
+      });
+
+      return res.status(500).json({ success: false, error: 'Lỗi khi cộng tiền cho người nhận. Đã rollback.' });
+    }
+
+    // 4. Lưu vào DB
     try {
       await pool.query(
-        'INSERT INTO transactions (from_user, to_user, from_phone_number, to_phone_number, amount, transaction_realtime) VALUES ($1,$2,$3,$4,$5,$6)',
-        [from_user, to_user, from_phone_number, to_phone_number, amount, transaction_realtime || new Date()]
+        'INSERT INTO transactions (from_user, to_user, from_phone_number, to_phone_number, amount, transaction_realtime) VALUES ($1, $2, $3, $4, $5, $6)',
+        [from_user, to_user, from_phone_number, to_phone_number, amount, transaction_realtime]
       );
-    } catch (logErr) {
-      // Logging failed: we already completed money transfer on charge-service.
-      // Optionally: raise alert, write to fallback log, or retry persisting.
-      console.error('[transaction-service] Failed to write transaction log:', logErr);
-      // We still return success, but inform that log failed.
-      return res.status(200).json({ success: true, warning: 'Giao dịch thành công nhưng ghi log thất bại' });
+    } catch (dbErr) {
+      // ❌ Rollback cả 2 bước:
+      // 4.1 Trừ người nhận lại
+      await axios.post(`${CHARGE_SERVICE_URL}/api/transfer-money`, {
+        from_user: to_user,
+        from_phone_number: to_phone_number,
+        amount
+      });
+
+      // 4.2 Cộng lại cho người gửi
+      await axios.post(`${CHARGE_SERVICE_URL}/api/add-money`, {
+        to_user: from_user,
+        to_phone_number: from_phone_number,
+        amount
+      });
+
+      console.error('Lỗi khi ghi DB, đã rollback:', dbErr);
+      return res.status(500).json({ success: false, error: 'Lỗi khi ghi log giao dịch. Đã rollback.' });
     }
 
-    return res.json({ success: true, message: 'Chuyển tiền thành công', details: chargeResp.data });
+    return res.json({ success: true, message: 'Chuyển tiền thành công.' });
+
   } catch (err) {
-    console.error('[transaction-service] transfer error:', err?.response?.data || err.message || err);
-    const status = err?.response?.status || 500;
-    const message = err?.response?.data?.message || 'Lỗi hệ thống khi chuyển tiền';
-    return res.status(status).json({ success: false, message });
+    console.error('Lỗi hệ thống khi xử lý chuyển tiền:', err);
+    return res.status(500).json({ success: false, error: 'Lỗi hệ thống.' });
   }
 });
-
 
 // Lấy lịch sử chuyển tiền
 app.post('/get-transaction-history', async (req, res) => {
