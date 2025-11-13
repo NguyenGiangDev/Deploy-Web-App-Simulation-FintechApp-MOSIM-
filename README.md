@@ -14,13 +14,15 @@ This project showcases the full lifecycle of a cloud-native web application, fro
 ## Architecture Diagram
 
 ### AWS Infrastructure
-<img width="493" height="550" alt="image" src="https://github.com/user-attachments/assets/47996608-f2b0-4527-b2b3-859013b85d16" />
+<img width="985" height="934" alt="image" src="https://github.com/user-attachments/assets/26c47c26-08ae-4753-b69b-f4ef9d91ae70" />
+
 
 
 
 
 The AWS architecture is designed for high availability and secure communication between services. Key components include:
-- **Amazon EC2**: Hosts backend services via Docker containers.
+- **Amazon EC2**: Hosts backend Nginx-Proxy service.
+- **ECS Fargate**: Deployed containerized backend microservices
 - **Amazon S3**: Stores static frontend files.
 - **AWS CloudFront**: Provides CDN for fast content delivery and HTTPS termination.
 - **PostgreSQL**: Managed relational database for storing transactional data.
@@ -34,14 +36,14 @@ The AWS architecture is designed for high availability and secure communication 
 
 The system follows a **microservice architecture**, where the frontend communicates with backend services through RESTful APIs. Key points:
 - **Frontend (S3 + CloudFront)**: Delivers static HTML/CSS/JS and communicates with backend APIs securely over HTTPS.
-- **Backend (Dockerized services)**: Each microservice is containerized and orchestrated using Docker Compose, handling authentication, transaction processing, and history management.
+- **Backend (Dockerized services)**: Each microservice is containerized and orchestrated using ECS, handling authentication, transaction processing, and history management.
 - **Database (PostgreSQL)**: Provides persistent storage for user accounts, balances, and transaction logs.
 - **Nginx**: Routes client requests to appropriate backend services and balances load for high availability.
 
 ---
 
 ## Technologies Used
-- **Backend:** Node.js, Docker, Docker Compose
+- **Backend:** Node.js, Docker, ECS Fargate
 - **Frontend:** Static web assets hosted on S3
 - **Database:** PostgreSQL
 - **Web Server / Proxy:** Nginx
