@@ -35,7 +35,7 @@ The AWS architecture is designed for high availability and secure communication 
 
 The system follows a **microservice architecture**, where the frontend communicates with backend services through RESTful APIs. Key points:
 - **Frontend (S3 + CloudFront)**: Delivers static HTML/CSS/JS and communicates with backend APIs securely over HTTPS.
-- **Backend (Dockerized services)**: Each microservice is containerized and orchestrated using Docker Compose, handling authentication, transaction processing, and history management.
+- **Backend (Dockerized services)**: Each microservice is containerized and orchestrated using ECSECS, handling authentication, transaction processing, and history management.
 - **Database (PostgreSQL)**: Provides persistent storage for user accounts, balances, and transaction logs.
 - **Nginx**: Routes client requests to appropriate backend services and balances load for high availability.
 
