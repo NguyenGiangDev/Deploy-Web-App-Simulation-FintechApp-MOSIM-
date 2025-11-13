@@ -1,70 +1,24 @@
-## LINK TRANG WEB :
-https://d29lh6hd2oahwi.cloudfront.net/
-
-
-# MOSIM: Fintech Simulation Web Microservice on AWS
-
-## Project Overview
-MOSIM is a microservice-based Fintech simulation web application developed to provide a realistic environment for simulating financial transactions. The project emphasizes **scalability, security, and maintainability**, leveraging AWS cloud services and modern DevOps practices.
-
-This project showcases the full lifecycle of a cloud-native web application, from containerization to deployment, and delivery optimization using CDN.
+<img width="985" height="934" alt="image" src="https://github.com/user-attachments/assets/0c088c21-0f3e-4d05-9623-ba93aa2a82f4" />
+---
+## Implementing Observability and Monitoring for a Microservices System on
+ Azure Kubernetes Service (AKS) using Elastic Stack
+ Description: Developed a full observability solution for microservices on Azure Kubernetes Service (AKS),
+ featuring dual CI/CD pipelines (Dev & Staging) for secure, automated deployments and Elastic Stack integration
+ for real-time monitoring and issue diagnosis.
+ • Responsibilities:– Designed and managed two CI/CD pipelines:
+ * Dev pipeline: Performed static code analysis using Semgrep and container image scanning with Trivy
+ for early vulnerability detection.
+ * Staging pipeline: Automated Docker image builds and packaging, updated Helm chart repository to
+ synchronize deployments to Azure Kubernetes Service (AKS) via ArgoCD.– Collected logs, metrics, and traces using Beats and APM agents, analyzed data in Elasticsearch, and
+ visualized system health in Kibana dashboards.– Managed the application data layer with Azure Database for PostgreSQL and hosted the static frontend via
+ Azure Static Web App.
+ • Technologies: Jenkins, ArgoCD, ACR , AKS, Azure Static Web App, Azure PostgreSQL, Elastic Stack
+ (Elasticsearch, Kibana, Filebeat, Metricbeat, Heartbeat, APM), Semgrep, Trivy, Helm
 
 ---
 
-## Architecture Diagram
+## Architecture overview
+<img width="1030" height="765" alt="Screenshot 2025-10-29 215351" src="https://github.com/user-attachments/assets/7a6b0ed5-1915-45fc-b029-013ceb404ae9" />
 
-### AWS Infrastructure
-<img width="493" height="550" alt="image" src="https://github.com/user-attachments/assets/47996608-f2b0-4527-b2b3-859013b85d16" />
-
-
-
-
-The AWS architecture is designed for high availability and secure communication between services. Key components include:
-- **Amazon EC2**: Hosts backend Nginx-Proxy service.
-- **ECS Fargate**: Deployed containerized backend microservices
-- **Amazon S3**: Stores static frontend files.
-- **AWS CloudFront**: Provides CDN for fast content delivery and HTTPS termination.
-- **PostgreSQL**: Managed relational database for storing transactional data.
-- **Nginx**: Configured as a reverse proxy and load balancer.
 
 ---
-
-### Client-Server Interaction
-<img width="977" height="658" alt="image" src="https://github.com/user-attachments/assets/88e677de-c770-41cf-b1fc-13fc5c7ceefa" />
-
-
-The system follows a **microservice architecture**, where the frontend communicates with backend services through RESTful APIs. Key points:
-- **Frontend (S3 + CloudFront)**: Delivers static HTML/CSS/JS and communicates with backend APIs securely over HTTPS.
-- **Backend (Dockerized services)**: Each microservice is containerized and orchestrated using ECS, handling authentication, transaction processing, and history management.
-- **Database (PostgreSQL)**: Provides persistent storage for user accounts, balances, and transaction logs.
-- **Nginx**: Routes client requests to appropriate backend services and balances load for high availability.
-
----
-
-## Technologies Used
-- **Backend:** Node.js, Docker, ECS Fargate
-- **Frontend:** Static web assets hosted on S3
-- **Database:** PostgreSQL
-- **Web Server / Proxy:** Nginx
-- **Cloud Infrastructure:** AWS CloudFormation, EC2, S3, CloudFront
-- **Deployment & Automation:** Containerized microservices, Docker Compose orchestration
-
----
-
-## Key Features
-- Containerized backend services for easy deployment and scalability.
-- Infrastructure as Code using AWS CloudFormation for reproducibility.
-- Reverse proxy and load balancing via Nginx to manage multiple services efficiently.
-- Frontend hosting on S3 with CloudFront CDN for low-latency access globally.
-- Secure communication between client, services, and database.
-- Realistic simulation of fintech transactions, including balance tracking and transaction history.
-
----
-
-## Future Improvements
-- Implement auto-scaling policies for backend services using ECS or Kubernetes.
-- Add monitoring and alerting via AWS CloudWatch or Prometheus.
-- Introduce CI/CD pipelines for automated testing and deployment.
-
-
-
