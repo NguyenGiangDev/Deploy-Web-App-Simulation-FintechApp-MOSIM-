@@ -20,7 +20,8 @@ This project showcases the full lifecycle of a cloud-native web application, fro
 
 
 The AWS architecture is designed for high availability and secure communication between services. Key components include:
-- **Amazon EC2**: Hosts backend services via Docker containers.
+- **Amazon EC2**: Hosts backend Nginx-Proxy service.
+- **ECS Fargate**: Deployed containerized backend microservices
 - **Amazon S3**: Stores static frontend files.
 - **AWS CloudFront**: Provides CDN for fast content delivery and HTTPS termination.
 - **PostgreSQL**: Managed relational database for storing transactional data.
@@ -41,7 +42,7 @@ The system follows a **microservice architecture**, where the frontend communica
 ---
 
 ## Technologies Used
-- **Backend:** Node.js, Docker, Docker Compose
+- **Backend:** Node.js, Docker, ECS Fargate
 - **Frontend:** Static web assets hosted on S3
 - **Database:** PostgreSQL
 - **Web Server / Proxy:** Nginx
