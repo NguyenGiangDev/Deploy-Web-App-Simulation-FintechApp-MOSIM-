@@ -14,7 +14,8 @@ This project showcases the full lifecycle of a cloud-native web application, fro
 ## Architecture Diagram
 
 ### AWS Infrastructure
-<img width="493" height="550" alt="image" src="https://github.com/user-attachments/assets/47996608-f2b0-4527-b2b3-859013b85d16" />
+<img width="985" height="934" alt="image" src="https://github.com/user-attachments/assets/063c3ede-de85-4dcf-bc4d-36b7b14b6935" />
+
 
 
 
