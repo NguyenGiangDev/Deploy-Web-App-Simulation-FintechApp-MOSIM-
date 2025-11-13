@@ -1,4 +1,4 @@
-<img width="985" height="934" alt="image" src="https://github.com/user-attachments/assets/0c088c21-0f3e-4d05-9623-ba93aa2a82f4" />
+
 ---
 ## Implementing Observability and Monitoring for a Microservices System on
  Azure Kubernetes Service (AKS) using Elastic Stack
